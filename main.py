@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # All globals and loading env
 load_dotenv()
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-PRICE_PER_ROBUX = int(os.environ.get("PRICE_PER_ROBUX"))
+PRICE_PER_ROBUX = eval(os.environ.get("PRICE_PER_ROBUX"))
 BOLD_API_KEY = os.environ.get("BOLD_API_KEY")
 
 # All related methods:
@@ -52,7 +52,7 @@ def generate_payment_details(user_id: int , gamepass_url: str):
         "amount_type": "CLOSE",
         "amount": {
             "currency": "COP",
-            "total_amount": f"{robux_amount * PRICE_PER_ROBUX}",
+            "total_amount": f"{((robux_amount * PRICE_PER_ROBUX) // 100) * 100}",
             "tip_amount": 0
         }
     }
@@ -64,12 +64,23 @@ def generate_payment_details(user_id: int , gamepass_url: str):
     all_details["payment_link"] = response.json()["payload"]["payment_link"]
     all_details["url"] = response.json()["payload"]["url"]
     all_details["robux_amount"] = robux_amount
-    all_details["total_price"] = robux_amount * PRICE_PER_ROBUX
+    all_details["total_price"] = ((robux_amount * PRICE_PER_ROBUX) // 100) * 100
     all_details["user_id"] = user_id
     all_details["username"] = username
     all_details["placeid"] = placeid
 
     return all_details
+
+def is_paid(payment_link: str):
+    url = f"https://integrations.api.bold.co/online/link/v1/{payment_link}"
+    headers = {
+        "Authorization": f"x-api-key {BOLD_API_KEY}"
+    }
+    response = requests.get(url=url , headers=headers)
+    if response.json()["status"] == "PAID":
+        return True
+    else:
+        return False
 
 def save_order_data(order_id, order_user_id, order_user_name, order_robux_amount, order_price):
     order_details = f"{order_id}, {order_user_id}, {order_user_name.replace(',', '')}, {order_robux_amount}, {order_price}\n"
@@ -149,7 +160,13 @@ class OrderView(discord.ui.View):
 
     @discord.ui.button(label="Money Paid", style=discord.ButtonStyle.green)
     async def money_paid_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Money has been marked as paid!", ephemeral=True)
+        if is_paid(payment_link=self.payment_details["payment_link"]):
+            embed = discord.Embed(title="Payment Status" , description="Money has been marked as paid!\nSending robux, please wait." , color=discord.Color.green())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        else:
+            embed = discord.Embed(title="Payment Status" , description="Money has not been marked as paid!" , color=discord.Color.red())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Close Order", style=discord.ButtonStyle.red)
     async def close_order_button(self, interaction: discord.Interaction, button: discord.ui.Button):
