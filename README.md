@@ -24,7 +24,7 @@ This is a Discord bot designed to facilitate the purchase of Robux through game 
 
    ```bash
    git clone https://github.com/m-usman-k/Robux-Purchase-Discord-Bot.git
-   cd robux-purchase-bot
+   cd Robux-Purchase-Discord-Bot
    ```
 
 2. Install the required libraries:
